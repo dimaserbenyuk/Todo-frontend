@@ -111,66 +111,86 @@ export default function Home() {
   // Функция для обновления токена
   const refreshAccessToken = async () => {
     try {
-      const refreshToken = localStorage.getItem("refresh_token");
-      if (!refreshToken) throw new Error("Нет refresh-токена");
+        console.log("🔄 Обновление токена...");
+        const refreshToken = localStorage.getItem("refresh_token");
+        console.log("📡 Refresh Token:", refreshToken);
 
-      const res = await fetch("http://localhost:8080/api/v1/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
+        if (!refreshToken) throw new Error("❌ Нет refresh-токена");
 
-      if (!res.ok) throw new Error("Ошибка обновления токена");
+        const res = await fetch("http://localhost:8080/api/v1/refresh", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+        });
 
-      const data = await res.json();
-      setAccessToken(data.access_token);
-      localStorage.setItem("access_token", data.access_token);
+        console.log("📡 Ответ от сервера при обновлении:", res.status);
+
+        if (!res.ok) throw new Error("❌ Ошибка обновления токена");
+
+        const data = await res.json();
+        console.log("✅ Новый Access Token:", data.access_token);
+
+        setAccessToken(data.access_token);
+        localStorage.setItem("access_token", data.access_token);
     } catch (err) {
-      console.error("Ошибка обновления токена:", err);
-      setAccessToken(null);
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+        console.error("⚠️ Ошибка обновления токена:", err);
+        setAccessToken(null);
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
     }
-  };
+};
 
   // Функция для загрузки задач
   const fetchTodos = async () => {
     const token = accessToken || localStorage.getItem("access_token");
-    if (!token) return;
+    console.log("📡 Отправляем запрос с токеном:", token); // DEBUG
+
+    if (!token) {
+        console.error("❌ Нет access_token, прерываем запрос");
+        return;
+    }
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/api/v1/tasks", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+        const res = await fetch("http://localhost:8080/api/v1/tasks", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
 
-      if (res.status === 401) {
-        await refreshAccessToken();
-        return fetchTodos(); // Повторяем запрос после обновления токена
-      }
+        console.log("📡 Ответ от сервера:", res.status);
+        
+        if (res.status === 401) {
+            console.warn("🔄 Токен истёк, обновляем...");
+            await refreshAccessToken();
+            return fetchTodos(); // Повторяем запрос
+        }
 
-      if (!res.ok) {
-        throw new Error(`Ошибка HTTP: ${res.status}`);
-      }
+        if (!res.ok) {
+            throw new Error(`Ошибка HTTP: ${res.status}`);
+        }
 
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setTodos(data);
-      } else {
-        throw new Error("Неверный формат данных");
-      }
+        const data = await res.json();
+        console.log("✅ Полученные задачи:", data);
+        if (Array.isArray(data)) {
+            setTodos(data);
+        } else {
+            throw new Error("Неверный формат данных");
+        }
     } catch (err: any) {
-      setError(err.message);
+        console.error("❌ Ошибка при загрузке:", err.message);
+        setError(err.message);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
+
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if (token) setAccessToken(token);
-    fetchTodos();
-  }, [accessToken]);
+    if (token) {
+        setAccessToken(token);
+        fetchTodos(); // Load todos when token is found
+    }
+  }, []);
 
   const handleLogout = () => {
     setAccessToken(null);
@@ -209,4 +229,3 @@ export default function Home() {
     </main>
   );
 }
-
