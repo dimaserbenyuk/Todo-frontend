@@ -1,28 +1,24 @@
-import Link from 'next/link'
-import { ClerkProvider, SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs'
+"use client";
+
+import { useAuthStore } from "@/lib/authStore";
+import Link from "next/link";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const { user, logout } = useAuthStore();
+
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body className="antialiased">
-          <header className="flex justify-between items-center p-4 h-16 bg-gray-200">
-            <nav>
-              <Link href="/" className="text-lg font-bold">Главная</Link>
-              <Link href="/tasks" className="ml-4 text-lg font-bold">Задачи</Link>
-            </nav>
-            <div>
-              <SignedOut>
-                <SignInButton />
-              </SignedOut>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-            </div>
-          </header>
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
-  )
+    <html lang="ru">
+      <body className="bg-gray-100 text-gray-900">
+        <nav className="p-4 bg-gray-800 text-white flex justify-between">
+          <Link href="/">Home</Link>
+          {user ? (
+            <button onClick={logout} className="bg-red-500 px-4 py-2">Выйти</button>
+          ) : (
+            <Link href="/login">Вход</Link>
+          )}
+        </nav>
+        <main className="container mx-auto p-6">{children}</main>
+      </body>
+    </html>
+  );
 }

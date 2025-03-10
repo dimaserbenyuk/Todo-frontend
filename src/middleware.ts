@@ -1,15 +1,23 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextRequest, NextResponse } from "next/server";
+import { parse } from "cookie";
 
-const isProtectedRoute = createRouteMatcher(['/api/(.*)'])
+export function middleware(req: NextRequest) {
+  const cookies = parse(req.headers.get("cookie") || "");
+  const accessToken = cookies.access_token;
 
-export default clerkMiddleware(async (auth, req) => {
-  const authObject = await auth() // Дожидаемся получения объекта аутентификации
-
-  if (isProtectedRoute(req) && !authObject.userId) {
-    return new Response('Unauthorized', { status: 401 }) // Если пользователь не аутентифицирован, возвращаем 401
+  // Разрешаем все API-запросы
+  if (req.nextUrl.pathname.startsWith("/api")) {
+    return NextResponse.next();
   }
-})
+
+  // Если нет токена, редирект на логин
+  if (!accessToken && req.nextUrl.pathname.startsWith("/tasks")) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: ['/((?!_next|.*\\..*).*)'],
-}
+  matcher: ["/tasks/:path*"],
+};

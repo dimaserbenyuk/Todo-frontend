@@ -1,98 +1,42 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { useFetchWithAuth } from '@/lib/api'
+"use client";
+
+import { useEffect, useState } from "react";
+import api from "@/lib/api";
+import { useAuthStore } from "@/lib/authStore";
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+}
 
 export default function TasksPage() {
-  const fetchWithAuth = useFetchWithAuth()
-  const [tasks, setTasks] = useState<any[]>([])
-  const [newTask, setNewTask] = useState({ title: '', description: '' })
-  const [error, setError] = useState<string | null>(null)
+  const { logout } = useAuthStore();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchWithAuth('/tasks')
-      .then(setTasks)
-      .catch(err => {
-        if (err instanceof Error) {
-          setError(err.message)
-        } else {
-          setError('Произошла неизвестная ошибка')
-        }
-      })
-  }, [])
-
-  const addTask = async () => {
-    try {
-      const createdTask = await fetchWithAuth('/tasks', {
-        method: 'POST',
-        body: JSON.stringify(newTask),
-      })
-      setTasks([...tasks, createdTask])
-      setNewTask({ title: '', description: '' }) // Очистка формы
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Произошла неизвестная ошибка')
-      }
-    }
-  }
-
-  const deleteTask = async (id: string) => {
-    try {
-      await fetchWithAuth(`/tasks/${id}`, { method: 'DELETE' })
-      setTasks(tasks.filter(task => task.id !== id))
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError('Произошла неизвестная ошибка')
-      }
-    }
-  }
-
-  if (error) return <p className="text-red-500">Ошибка: {error}</p>
+    api.get("/tasks")
+      .then((res) => setTasks(res.data))
+      .catch(() => logout())
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Список задач</h1>
-
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Название задачи"
-          className="border p-2 rounded w-full mb-2"
-          value={newTask.title}
-          onChange={e => setNewTask({ ...newTask, title: e.target.value })}
-        />
-        <textarea
-          placeholder="Описание"
-          className="border p-2 rounded w-full mb-2"
-          value={newTask.description}
-          onChange={e => setNewTask({ ...newTask, description: e.target.value })}
-        />
-        <button
-          className="bg-blue-500 text-white px-4 py-2 rounded w-full"
-          onClick={addTask}
-        >
-          Добавить задачу
-        </button>
-      </div>
-
-      <ul className="space-y-2">
-        {tasks.map(task => (
-          <li key={task.id} className="p-2 border rounded flex justify-between items-center">
-            <div>
-              <strong>{task.title}</strong>: {task.description}
-            </div>
-            <button
-              className="bg-red-500 text-white px-2 py-1 rounded"
-              onClick={() => deleteTask(task.id)}
-            >
-              Удалить
-            </button>
-          </li>
-        ))}
-      </ul>
+    <div className="p-6">
+      <h1 className="text-xl font-bold mb-4">Мои задачи</h1>
+      {loading ? <p>Загрузка...</p> : (
+        <ul>
+          {tasks.map((task) => (
+            <li key={task.id} className="border p-3 mb-2">
+              <h2 className="text-lg">{task.title}</h2>
+              <p>{task.description}</p>
+              <p>Статус: {task.completed ? "✅ Выполнено" : "❌ В процессе"}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
-  )
+  );
 }
