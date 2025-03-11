@@ -1,31 +1,63 @@
+"use client";
+
 import { create } from "zustand";
-import Cookies from "js-cookie";
-import api from "./api";
 
 interface AuthState {
-  user: { username: string; role: string } | null;
-  accessToken: string | null;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  user: string | null;
+  setUser: (user: string | null) => void;
+  login: (username: string, password: string, onLoginSuccess?: () => void) => Promise<boolean>;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  accessToken: Cookies.get("access_token") || null,
-  login: async (username, password) => {
-    try {
-      const response = await api.post("/login", { username, password });
-      Cookies.set("access_token", response.data.access_token, { expires: 1 });
-      Cookies.set("refresh_token", response.data.refresh_token, { expires: 30 });
-      set({ user: { username, role: "user" }, accessToken: response.data.access_token });
+
+  setUser: (user) => set({ user }),
+
+  login: async (username, password, onLoginSuccess) => {
+    const response = await fetch("http://localhost:8080/api/v1/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+      credentials: "include", // 🔥 Передаем cookies
+    });
+
+    if (response.ok) {
+      set({ user: username });
+
+      // ✅ Гарантированно вызываем onLoginSuccess только после установки user
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      }
+
       return true;
-    } catch (error) {
+    } else {
       return false;
     }
   },
-  logout: () => {
-    Cookies.remove("access_token");
-    Cookies.remove("refresh_token");
-    set({ user: null, accessToken: null });
+
+  logout: async () => {
+    await fetch("http://localhost:8080/api/v1/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+    set({ user: null });
+  },
+
+  checkAuth: async () => {
+    const response = await fetch("http://localhost:8080/api/v1/me", {
+      credentials: "include",
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      set({ user: data.username });
+    } else {
+      set({ user: null });
+    }
   },
 }));
+
+// ⚡ Автоматическая проверка авторизации при загрузке страницы
+useAuthStore.getState().checkAuth();

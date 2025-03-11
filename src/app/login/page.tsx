@@ -16,10 +16,13 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(form.username, form.password);
-    if (success) {
-      router.push("/tasks");
-    } else {
+    setError(""); // Очистка ошибок перед новым запросом
+
+    const success = await login(form.username, form.password, () => {
+      router.push("/tasks"); // ✅ Перенаправляем после установки user
+    });
+
+    if (!success) {
       setError("Неверные учетные данные");
     }
   };

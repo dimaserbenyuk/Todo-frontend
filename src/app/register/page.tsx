@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useAuthStore } from "@/lib/authStore";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function RegisterPage() {
+  const { login } = useAuthStore();
   const router = useRouter();
   const [form, setForm] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -16,7 +18,6 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
 
     try {
       const response = await fetch("http://localhost:8080/api/v1/register", {
@@ -29,58 +30,27 @@ export default function RegisterPage() {
         throw new Error("Ошибка при регистрации");
       }
 
-      const data = await response.json();
-      alert(`Пользователь ${form.username} успешно зарегистрирован!`);
+      toast.success("Успешная регистрация!", { description: `Добро пожаловать, ${form.username}!` });
 
-      router.push("/login"); // После регистрации перенаправляем на вход
+      // ✅ Автоматический вход после регистрации
+      const success = await login(form.username, form.password);
+      if (success) router.push("/tasks");
+
     } catch (err) {
-      setError("Ошибка при регистрации. Возможно, пользователь уже существует.");
+      toast.error("Ошибка", { description: "Пользователь уже существует или сервер недоступен." });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center mb-4 text-gray-900 dark:text-white">
-          Регистрация
-        </h2>
-        {error && <p className="text-red-500 text-center">{error}</p>}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            name="username"
-            value={form.username}
-            onChange={handleChange}
-            placeholder="Логин"
-            required
-            className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white"
-          />
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            placeholder="Пароль"
-            required
-            className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-md transition disabled:bg-gray-400"
-          >
-            {loading ? "Регистрация..." : "Зарегистрироваться"}
-          </button>
-        </form>
-        <p className="text-center mt-4 text-gray-700 dark:text-gray-300">
-          Уже есть аккаунт?{" "}
-          <a href="/login" className="text-blue-500 hover:underline">
-            Войти
-          </a>
-        </p>
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <form onSubmit={handleSubmit} className="p-4 border rounded shadow-md w-80">
+        <h2 className="text-lg font-bold mb-4">Регистрация</h2>
+        <input name="username" onChange={handleChange} placeholder="Логин" className="w-full p-2 border mb-2" />
+        <input name="password" type="password" onChange={handleChange} placeholder="Пароль" className="w-full p-2 border mb-2" />
+        <button type="submit" className="w-full p-2 bg-green-500 text-white">{loading ? "Регистрация..." : "Зарегистрироваться"}</button>
+      </form>
     </div>
   );
 }

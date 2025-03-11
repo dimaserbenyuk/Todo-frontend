@@ -8,11 +8,12 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // ✅ Включаем передачу куков при запросах
 });
 
-// Добавляем токен в заголовки, если он есть в куках
+// ✅ Добавляем токен в заголовки, если он есть в куках
 api.interceptors.request.use((config) => {
-  const token = Cookies.get("access_token");
+  const token = Cookies.get("token"); // 🔥 Бралось `access_token`, но в куках он называется `token`
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
