@@ -1,24 +1,86 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@/lib/authStore";
 import { toast } from "sonner";
-
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 export default function SecurityPage() {
-  // Храним текущий API-токен
-  const [apiToken, setApiToken] = useState<string | null>(null);
+  const [hasApiToken, setHasApiToken] = useState<boolean>(false);
+  const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // При загрузке проверим, есть ли токен
   useEffect(() => {
-    fetchApiToken();
+    checkApiToken();
   }, []);
 
-  const fetchApiToken = async () => {
+  // Проверяем, есть ли уже API-токен в базе
+  const checkApiToken = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:8080/api/v1/token", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        // Если ответ 200 OK, значит токен найден (но мы не считываем само значение)
+        setHasApiToken(true);
+      } else {
+        // Например, 404 = "No API token found"
+        setHasApiToken(false);
+      }
+    } catch (err) {
+      toast.error("Ошибка при проверке API-токена");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Генерация нового API-токена
+  const handleGenerateToken = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:8080/api/v1/token/generate_api", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Ошибка генерации токена");
+
+      // Бэкенд возвращает { "api_token": "eyJhbGc..." }, но мы не показываем тут
+      await res.json();
+
+      toast.success("API-токен успешно сгенерирован!");
+      setHasApiToken(true);
+      setRevealedToken(null); // сбрасываем на всякий случай
+    } catch (err) {
+      toast.error("Не удалось сгенерировать токен");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Отозвать токен
+  const handleRevokeToken = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("http://localhost:8080/api/v1/revoke", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Ошибка отзыва токена");
+
+      toast.success("Токен отозван!");
+      setHasApiToken(false);
+      setRevealedToken(null);
+    } catch (err) {
+      toast.error("Не удалось отозвать токен");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Запрашиваем реальное значение токена (если хотим показать)
+  const handleRevealToken = async () => {
     try {
       setLoading(true);
       const res = await fetch("http://localhost:8080/api/v1/token", {
@@ -26,46 +88,21 @@ export default function SecurityPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setApiToken(data.token); // Если есть
+        // Допустим, бэкенд возвращает { "token": "eyJhbG..." }
+        setRevealedToken(data.token);
       } else {
-        setApiToken(null);
+        toast.error("Токен не найден");
       }
     } catch (err) {
-      toast.error("Ошибка получения токена");
+      toast.error("Не удалось получить токен");
     } finally {
       setLoading(false);
     }
   };
 
-  // Генерировать токен
-  const handleGenerateToken = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/token/generate", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Ошибка генерации токена");
-      const data = await res.json();
-      setApiToken(data.token);
-      toast.success("Токен сгенерирован!");
-    } catch (err) {
-      toast.error("Не удалось сгенерировать токен");
-    }
-  };
-
-  // Отозвать токен
-  const handleRevokeToken = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/token/revoke", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Ошибка отзыва токена");
-      toast.success("Токен отозван!");
-      setApiToken(null);
-    } catch (err) {
-      toast.error("Не удалось отозвать токен");
-    }
+  // Скрыть видимый токен
+  const handleHideToken = () => {
+    setRevealedToken(null);
   };
 
   return (
@@ -92,7 +129,7 @@ export default function SecurityPage() {
 
       {/* Контент Security */}
       <div className="flex-1 p-8">
-        <div className="max-w-2xl mx-auto relative">
+        <div className="max-w-2xl mx-auto">
           <Card className="bg-white shadow-md rounded-lg">
             <CardHeader className="p-6 border-b">
               <h3 className="text-lg font-bold">API Token</h3>
@@ -102,31 +139,63 @@ export default function SecurityPage() {
             </CardHeader>
 
             <CardContent className="p-6 space-y-4">
-              {apiToken ? (
+              {hasApiToken ? (
                 <>
-                  <div className="p-4 border rounded bg-gray-50">
-                    <p className="text-sm text-gray-500 mb-1">
-                      Ваш текущий API-токен:
+                  {revealedToken ? (
+                    <div className="border rounded bg-gray-50 p-4">
+                      <p className="text-sm text-gray-500 font-semibold mb-2">
+                        Ваш текущий API-токен:
+                      </p>
+                      <p className="font-mono text-sm break-all text-gray-800">
+                        {revealedToken}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2 font-semibold">
+                        Используйте этот токен, добавляя заголовок:
+                      </p>
+                      <pre className="bg-gray-100 p-2 rounded text-xs whitespace-pre-wrap">
+                        {`Authorization: Bearer ${revealedToken}`}
+                      </pre>
+
+                      <Button
+                        // variant="secondary"
+                        onClick={handleHideToken}
+                        className="mt-3"
+                      >
+                        Скрыть токен
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      У вас есть активный API-токен (скрыт для безопасности).
                     </p>
-                    <p className="font-mono text-sm break-all text-gray-800">
-                      {apiToken}
-                    </p>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Используйте этот токен, добавляя заголовок:
-                    <pre className="bg-gray-100 p-2 mt-1 rounded text-xs">
-{`Authorization: Bearer ${apiToken}`}
-                    </pre>
-                  </p>
+                  )}
+
                   <Separator />
-                  <Button variant="destructive" onClick={handleRevokeToken}>
-                    Отозвать токен
-                  </Button>
+
+                  <div className="flex gap-2">
+                    {!revealedToken && (
+                      <Button onClick={handleRevealToken} disabled={loading}>
+                        Показать токен
+                      </Button>
+                    )}
+                    <Button
+                      variant="destructive"
+                      onClick={handleRevokeToken}
+                      disabled={loading}
+                    >
+                      Отозвать токен
+                    </Button>
+                  </div>
                 </>
               ) : (
-                <div className="flex flex-col items-start space-y-3">
-                  <p>У вас нет активного API-токена. Нажмите кнопку, чтобы сгенерировать.</p>
-                  <Button onClick={handleGenerateToken}>Сгенерировать токен</Button>
+                <div className="flex flex-col space-y-3">
+                  <p className="text-sm text-gray-600">
+                    У вас нет активного API-токена. Нажмите кнопку, чтобы
+                    сгенерировать.
+                  </p>
+                  <Button onClick={handleGenerateToken} disabled={loading}>
+                    Сгенерировать токен
+                  </Button>
                 </div>
               )}
             </CardContent>
