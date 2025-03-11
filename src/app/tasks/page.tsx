@@ -13,12 +13,12 @@ interface Task {
 
 export default function TasksPage() {
   const { logout } = useAuthStore();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.get("/tasks")
-      .then((res) => setTasks(res.data))
+      .then((res) => setTasks(res.data.length ? res.data : [])) // ✅ Гарантируем, что tasks будет массивом
       .catch(() => logout())
       .finally(() => setLoading(false));
   }, []);
@@ -26,7 +26,9 @@ export default function TasksPage() {
   return (
     <div className="p-6">
       <h1 className="text-xl font-bold mb-4">Мои задачи</h1>
-      {loading ? <p>Загрузка...</p> : (
+      {loading ? (
+        <p>Загрузка...</p>
+      ) : tasks && tasks.length > 0 ? ( // ✅ Проверяем, есть ли задачи
         <ul>
           {tasks.map((task) => (
             <li key={task.id} className="border p-3 mb-2">
@@ -36,6 +38,8 @@ export default function TasksPage() {
             </li>
           ))}
         </ul>
+      ) : (
+        <p className="text-gray-500">У вас пока нет задач</p> // ✅ Сообщение, если задач нет
       )}
     </div>
   );

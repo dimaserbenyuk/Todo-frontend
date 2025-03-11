@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parse } from "cookie";
 
 export function middleware(req: NextRequest) {
-  const cookies = parse(req.headers.get("cookie") || "");
-  const token = cookies.token; // Проверяем токен
+  const token = req.cookies.get("token"); // ✅ Теперь мы берем куки из req.cookies
 
   if (!token && req.nextUrl.pathname !== "/login") {
-    return NextResponse.redirect(new URL("/login", req.url)); // 🚨 Возможная причина редиректа
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/tasks", "/dashboard"], // 👀 Где срабатывает middleware
+  matcher: ["/tasks", "/dashboard"],
 };

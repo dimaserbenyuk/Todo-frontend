@@ -1,63 +1,47 @@
-"use client";
-
 import { create } from "zustand";
+import api from "@/lib/api";
 
 interface AuthState {
   user: string | null;
   setUser: (user: string | null) => void;
-  login: (username: string, password: string, onLoginSuccess?: () => void) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-
+  
   setUser: (user) => set({ user }),
 
-  login: async (username, password, onLoginSuccess) => {
-    const response = await fetch("http://localhost:8080/api/v1/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-      credentials: "include", // 🔥 Передаем cookies
-    });
+  login: async (username, password) => {
+    try {
+      const response = await api.post("/login", { username, password });
 
-    if (response.ok) {
-      set({ user: username });
-
-      // ✅ Гарантированно вызываем onLoginSuccess только после установки user
-      if (onLoginSuccess) {
-        onLoginSuccess();
+      if (response.status === 200) {
+        await useAuthStore.getState().checkAuth();
+        return true;
       }
 
-      return true;
-    } else {
+      return false;
+    } catch {
       return false;
     }
   },
 
   logout: async () => {
-    await fetch("http://localhost:8080/api/v1/logout", {
-      method: "POST",
-      credentials: "include",
-    });
+    await api.post("/logout");
     set({ user: null });
   },
 
   checkAuth: async () => {
-    const response = await fetch("http://localhost:8080/api/v1/me", {
-      credentials: "include",
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      set({ user: data.username });
-    } else {
+    try {
+      const response = await api.get("/me");
+      set({ user: response.data.username });
+    } catch {
       set({ user: null });
     }
   },
 }));
 
-// ⚡ Автоматическая проверка авторизации при загрузке страницы
 useAuthStore.getState().checkAuth();

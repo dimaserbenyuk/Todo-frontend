@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Disclosure, DisclosureButton, DisclosurePanel, Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon, BellIcon, MoonIcon, SunIcon } from "@heroicons/react/24/outline";
@@ -16,13 +16,16 @@ function classNames(...classes: string[]) {
 }
 
 export default function Navbar() {
-  const { user, setUser, logout, checkAuth } = useAuthStore();
+  const { user, checkAuth, logout } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    checkAuth(); // ✅ Проверяем авторизацию при монтировании
+    checkAuth(); // 🔥 Проверяем авторизацию при монтировании
+  }, []);
+
+  useEffect(() => {
     const storedTheme = localStorage.getItem("theme");
     if (storedTheme) {
       document.documentElement.classList.toggle("dark", storedTheme === "dark");
@@ -108,7 +111,7 @@ export default function Navbar() {
                     <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none">
                       <MenuItem>
                         <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                          Your Profile
+                          Профиль
                         </Link>
                       </MenuItem>
                       <MenuItem>
@@ -131,6 +134,22 @@ export default function Navbar() {
               </div>
             </div>
           </div>
+
+          {/* Мобильное меню */}
+          <DisclosurePanel className="sm:hidden">
+            <div className="space-y-1 px-2 pt-2 pb-3">
+              {navigation.map((item) => (
+                <DisclosureButton
+                  key={item.name}
+                  as="a"
+                  href={item.href}
+                  className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  {item.name}
+                </DisclosureButton>
+              ))}
+            </div>
+          </DisclosurePanel>
         </>
       )}
     </Disclosure>
