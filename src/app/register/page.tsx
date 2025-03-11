@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 export default function RegisterPage() {
-  const { login, setUser } = useAuthStore(); // ✅ Используем setUser
+  const { login, setUser } = useAuthStore();
   const router = useRouter();
   const [form, setForm] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -24,12 +24,15 @@ export default function RegisterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-        credentials: "include", // ✅ Поддержка куков
+        credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error("Ошибка при регистрации");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Ошибка при регистрации");
       }
+
+      const data = await response.json(); // ✅ Получаем данные о пользователе (включая роль)
 
       toast.success("Регистрация успешна!", {
         description: `Добро пожаловать, ${form.username}!`,
@@ -38,14 +41,14 @@ export default function RegisterPage() {
       // ✅ Автоматический вход после регистрации
       const success = await login(form.username, form.password);
       if (success) {
-        useAuthStore.getState().setUser(form.username); // 🔥 Явное обновление состояния
+        useAuthStore.getState().setUser({ username: form.username, role: data.roles[0] }); // 🔥 Обновляем user + роль
         router.push("/tasks");
       } else {
         throw new Error("Ошибка при входе после регистрации");
       }
     } catch (err) {
       toast.error("Ошибка", {
-        description: "Пользователь уже существует или сервер недоступен.",
+        description: err instanceof Error ? err.message : "Пользователь уже существует или сервер недоступен.",
       });
     } finally {
       setLoading(false);

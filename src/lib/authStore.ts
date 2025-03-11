@@ -1,9 +1,14 @@
 import { create } from "zustand";
 import api from "@/lib/api";
 
+interface User {
+  username: string;
+  role: string;
+}
+
 interface AuthState {
-  user: string | null;
-  setUser: (user: string | null) => void;
+  user: User | null;
+  setUser: (user: User | null) => void;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -37,11 +42,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   checkAuth: async () => {
     try {
       const response = await api.get("/me");
-      set({ user: response.data.username });
+      set({ user: { username: response.data.username, role: response.data.role } });
     } catch {
       set({ user: null });
     }
   },
 }));
 
+// Проверка авторизации при загрузке страницы
 useAuthStore.getState().checkAuth();
