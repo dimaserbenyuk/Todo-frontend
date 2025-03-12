@@ -51,10 +51,18 @@ export default function SecurityPage() {
   const handleRevokeToken = async () => {
     setLoading(true);
     try {
+      const token = revealedToken; // Используем текущий API-токен
+      if (!token) throw new Error("Нет токена для отзыва");
+  
       const res = await fetch("http://localhost:8080/api/v1/revoke", {
         method: "POST",
         credentials: "include",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
       });
+  
       if (!res.ok) throw new Error("Ошибка отзыва токена");
       toast.success("Токен отозван!");
       setHasApiToken(false);
@@ -64,7 +72,7 @@ export default function SecurityPage() {
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   const handleRevealToken = async () => {
     setLoading(true);
